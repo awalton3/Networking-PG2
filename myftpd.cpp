@@ -1,7 +1,7 @@
 /* Team Members: Molly Zachlin, Auna Walton
  * Netids: mzachlin, awalton3
  *
- * myftpd.cpp - The server side of the FTP service 
+ * myftp.cpp - The client side of the FTP file application 
  *
  * */
 
@@ -24,7 +24,7 @@ using namespace std;
 void error(int code) {
     switch (code) {
         case 1:
-            cout << "Usage: ./udpserver PORT" << endl;
+            cout << "Usage: ./myftpd PORT" << endl;
         break;
         default:
             cout << "There was an unexpected error." << endl;
@@ -33,6 +33,7 @@ void error(int code) {
 }
 
 int main(int argc, char** argv) {
+
     /* Parse command line arguments */
     if (argc < 2) {
         error(1);
@@ -83,14 +84,24 @@ int main(int argc, char** argv) {
     struct sockaddr_in client_sock;
     socklen_t len = sizeof(client_sock);
     while (1) {
+
         cout << "Waiting for connections on port " << port << endl;
         if ((new_sockfd = accept(sockfd, (struct sockaddr*) &client_sock, &len)) < 0) {
             perror("Accept failed.");
             return 1;
         }
+
         cout << "Connection established." << endl;
 
         /* Continue to receive messages */ 
+		char command[MAX_SIZE];
+		if (recv(new_sockfd, command, sizeof(command), 0) == -1) {
+            perror("Error receiving command from client.");   
+			return 1; 
+        } 
+
+		cout << command << endl; 
+
     }
   
     /* Continuously receive messages */

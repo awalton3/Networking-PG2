@@ -1,7 +1,7 @@
-/* Molly Zachlin
- * mzachlin
+/* Molly Zachlin, Auna Walton 
+ * mzachlin, awalton3
  *
- * udpclient.cpp - The client side of the UDP messaging service 
+ * myftp.cpp - The client side of the TCP file application 
  *
  * */ 
 
@@ -26,36 +26,41 @@ using namespace std;
 void error(int code) {
     switch (code) {
         case 1:
-            cout << "Usage: ./udpclient HOSTNAME PORT MESSAGE" << endl;
+            cout << "Usage: ./myftp HOSTNAME PORT" << endl;
         break;
-        default:
+		case 2: 
+			cout << "Available Options: \n DN: Download \n UP: Upload \n HEAD: Head of File \n RM: Remove File \n LS: List\n" 			  "MKDIR: Make Directory\n RMDIR: Remove Directory\n CD: Change Directory\n QUIT: Quit\n"; 
+		break; 		
+		default:
             cout << "There was an unexpected error." << endl;
         break;
     }
 }
 
+/* List files on server */ 
+void LS(int sockfd, struct sockaddr* sock) {
+
+	const char* command = "LS"; 
+
+	if (send(sockfd, command, strlen(command) + 1, 0) == -1) {
+        perror("Error sending command to server."); 
+    }
+
+}
+
+
 int main(int argc, char** argv) {
+
     /* Parse command line arguments */
-    if (argc < 4) { // Not enough input args
+    if (argc < 3) { // Not enough input args
         error(1); 
         return 1;
     }
 
     const char* host = argv[1];
     int port = stoi(argv[2]);
-    char* path = argv[3]; 
     struct stat statbuf;
     string msg;
-
-    if (stat(path, &statbuf) < 0) { // Input message is a string
-        msg = path;
-    }
-    else {  // Input message is a file 
-        ifstream inFile(path);
-        ostringstream ss;
-        ss << inFile.rdbuf();
-        msg = ss.str();  
-    }
     
     /* Translate host name into peer's IP address */
     struct hostent* hostIP = gethostbyname(host);
@@ -83,11 +88,30 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+	cout << "Connecting to " << host << " on port " << port << endl; 
+
     /* Connect */
     if (connect(sockfd, (struct sockaddr*)&sock, sizeof(sock)) < 0) {
         perror("Error connecting.");
         return 1;
     }
+
+	cout << "Connection established" << endl; 
+
+	/* Wait for user input */ 
+	string command; 
+	while (1) {
+
+		cout << "> "; 
+		cin >> command; 
+
+		if (command == "LS")
+			LS(sockfd, (struct sockaddr*)&sock);  
+		else 
+			error(2); 
+	}
+	
+
 
     /* Generate a public encryption key */
     //char* pubKey = getPubKey();
