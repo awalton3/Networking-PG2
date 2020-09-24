@@ -16,10 +16,7 @@
 #include <sstream>
 #include <netdb.h>
 #include <sys/time.h>
-
 #define MAX_SIZE 4096
-
-
 using namespace std;
 
 /* Display error messages */
@@ -37,27 +34,31 @@ void error(int code) {
     }
 }
 
-/* List files on server */ 
-void LS(int sockfd, struct sockaddr* sock) {
+void sendcomm(int sockfd, string command) {
+	char commandF[BUFSIZ] ; 
+	strcpy(commandF, command.c_str());  
 
-	// Send command to server
-    const char* command = "LS"; 
-    
-	if (send(sockfd, command, strlen(command) + 1, 0) == -1) {
+	if (send(sockfd, commandF, strlen(commandF) + 1, 0) == -1) {
         perror("Error sending command to server."); 
         return;
     }
-    
-    // Receive output from server
+}
+
+/* List files on server */ 
+void LS(int sockfd) {
     char results[BUFSIZ];
     if (recv(sockfd, results, sizeof(results), 0) == -1) {
         perror("Failed to receive results of LS from server.");
         return;
     }
+	cout << results << endl; 
+}
 
-    cout << results << endl;
+/* Change server directory */ 
+void CD(int sockfd) {
 
-
+	
+	
 }
 
 
@@ -111,20 +112,21 @@ int main(int argc, char** argv) {
 	cout << "Connection established" << endl; 
 
 	/* Wait for user input */ 
-	string command; 
+	string command;
+   	string additional; 	
 	while (1) {
 
 		cout << "> "; 
-		cin >> command; 
+		//cin >> command; 
+		getline(cin, command);
+		sendcomm(sockfd, command); 
 
 		if (command == "LS")
-			LS(sockfd, (struct sockaddr*)&sock);  
+			LS(sockfd);  
 		else 
 			error(2); 
 	}
 	
-
-
     /* Generate a public encryption key */
     //char* pubKey = getPubKey();
 

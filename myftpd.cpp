@@ -1,7 +1,7 @@
 /* Team Members: Molly Zachlin, Auna Walton
  * NetIDs: mzachlin, awalton3
  *
- * myftpd.cpp - The client side of the TCP file application 
+ * myftpd.cpp - The server side of the TCP file application 
  *
  * */
 
@@ -47,10 +47,11 @@ void LS(int new_sockfd, int sockfd) {
     /* Return results to client */
     FILE* lsFile = fopen("lsRes.txt", "r");
     fread(results, BUFSIZ, 1, lsFile);
+
     if (send(new_sockfd, results, strlen(results) + 1, 0) == -1) {  //TODO: fix size in case ls has more than 4096 bytes of output
         perror("Sending results of LS failed.");
         return;
-    }    
+    }  	
 }
 
 int main(int argc, char** argv) {
@@ -108,28 +109,31 @@ int main(int argc, char** argv) {
 
         cout << "Waiting for connections on port " << port << endl;
         if ((new_sockfd = accept(sockfd, (struct sockaddr*) &client_sock, &len)) < 0) {
+			cout << "exiting " << endl; 
             perror("Accept failed.");
+			cout << "exiting " << endl; 
             return 1;
         }
 
         cout << "Connection established." << endl;
 
-        /* Continue to receive messages */ 
+        /* Continue to receive commands */ 
 		char command[MAX_SIZE];
-		if (recv(new_sockfd, command, sizeof(command), 0) == -1) {
-            perror("Error receiving command from client.");   
-			return 1; 
-        } 
+		while (1) {
 
-	    /* Handle commands */ 
-        while (1) {
-            if (strcmp(command, "LS") == 0) 
-                LS(new_sockfd, sockfd);
-            else 
+			if (recv(new_sockfd, command, sizeof(command), 0) == -1) {
+            	perror("Error receiving command from client.");   
+				return 1; 
+       		}
+
+	    	/* Handle commands */ 
+			if (strcmp(command, "LS") == 0) {
+				LS(new_sockfd, sockfd);
+			} else {
                 error(2);
-        }
-        
-    }
+        	}
+    	}
+	} 
   
     /* Continuously receive messages */
     //char clientKey[MAX_SIZE];
