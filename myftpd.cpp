@@ -1,7 +1,7 @@
 /* Team Members: Molly Zachlin, Auna Walton
- * Netids: mzachlin, awalton3
+ * NetIDs: mzachlin, awalton3
  *
- * myftp.cpp - The client side of the FTP file application 
+ * myftpd.cpp - The client side of the TCP file application 
  *
  * */
 
@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <fstream>
 #include <time.h>
 
 #define MAX_SIZE 4096
@@ -26,10 +27,30 @@ void error(int code) {
         case 1:
             cout << "Usage: ./myftpd PORT" << endl;
         break;
+        case 2:
+            cout << "Unrecognized command." << endl;
+        break;
         default:
             cout << "There was an unexpected error." << endl;
         break;
     }
+}
+
+
+/* Execute LS command and return results to client */ 
+void LS(int new_sockfd, int sockfd) {
+    
+    /* Run ls on server and capture output */
+    char results[BUFSIZ];
+    system("ls -l > lsRes.txt");
+    
+    /* Return results to client */
+    FILE* lsFile = fopen("lsRes.txt", "r");
+    fread(results, BUFSIZ, 1, lsFile);
+    if (send(new_sockfd, results, strlen(results) + 1, 0) == -1) {  //TODO: fix size in case ls has more than 4096 bytes of output
+        perror("Sending results of LS failed.");
+        return;
+    }    
 }
 
 int main(int argc, char** argv) {
@@ -100,8 +121,14 @@ int main(int argc, char** argv) {
 			return 1; 
         } 
 
-		cout << command << endl; 
-
+	    /* Handle commands */ 
+        while (1) {
+            if (strcmp(command, "LS") == 0) 
+                LS(new_sockfd, sockfd);
+            else 
+                error(2);
+        }
+        
     }
   
     /* Continuously receive messages */

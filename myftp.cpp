@@ -1,5 +1,5 @@
-/* Molly Zachlin, Auna Walton 
- * mzachlin, awalton3
+/* Team members: Molly Zachlin, Auna Walton 
+ * NetIDs: mzachlin, awalton3
  *
  * myftp.cpp - The client side of the TCP file application 
  *
@@ -29,7 +29,7 @@ void error(int code) {
             cout << "Usage: ./myftp HOSTNAME PORT" << endl;
         break;
 		case 2: 
-			cout << "Available Options: \n DN: Download \n UP: Upload \n HEAD: Head of File \n RM: Remove File \n LS: List\n" 			  "MKDIR: Make Directory\n RMDIR: Remove Directory\n CD: Change Directory\n QUIT: Quit\n"; 
+			cout << "Available Options: \n DN: Download \n UP: Upload \n HEAD: Head of File \n RM: Remove File \n LS: List\n" 			             " MKDIR: Make Directory\n RMDIR: Remove Directory\n CD: Change Directory\n QUIT: Quit\n"; 
 		break; 		
 		default:
             cout << "There was an unexpected error." << endl;
@@ -40,11 +40,23 @@ void error(int code) {
 /* List files on server */ 
 void LS(int sockfd, struct sockaddr* sock) {
 
-	const char* command = "LS"; 
-
+	// Send command to server
+    const char* command = "LS"; 
+    
 	if (send(sockfd, command, strlen(command) + 1, 0) == -1) {
         perror("Error sending command to server."); 
+        return;
     }
+    
+    // Receive output from server
+    char results[BUFSIZ];
+    if (recv(sockfd, results, sizeof(results), 0) == -1) {
+        perror("Failed to receive results of LS from server.");
+        return;
+    }
+
+    cout << results << endl;
+
 
 }
 
