@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -38,7 +39,7 @@ void error(int code) {
 
 
 /* Execute LS command and return results to client */ 
-void LS(int new_sockfd, int sockfd) {
+void LS(int new_sockfd) {
     
     /* Run ls on server and capture output */
     char results[BUFSIZ];
@@ -50,6 +51,42 @@ void LS(int new_sockfd, int sockfd) {
 
     if (send(new_sockfd, results, strlen(results) + 1, 0) == -1) {  //TODO: fix size in case ls has more than 4096 bytes of output
         perror("Sending results of LS failed.");
+        return;
+    }  	
+}
+
+/* Get the first 10 lines of the specified file */
+void HEAD(int new_sockfd, char* file) {
+    
+    cout << "file is : " << file << endl;
+    
+    // Check whether file exists
+    struct stat s;
+    if (stat(file, &s) < 0) {
+        perror("File does not exist."); //TODO: return -1 to client
+        if (send(new_sockfd, -1, 1, 0) == -1) {  //TODO: fix size in case ls has more than 4096 bytes of output
+            perror("Sending HEAD error code failed.");
+            return;
+        }             
+        return;
+    }
+    
+    // Create command
+    char head_cmd[MAX_SIZE] = "head ";
+    char end_cmd[15] = " > headRes.txt";
+    strcat(head_cmd, file);
+    strcat(head_cmd, end_cmd);
+    
+    // Execute command
+    system(head_cmd);
+    
+    // Return results to client 
+    char results[BUFSIZ];
+    FILE* headFile = fopen("headRes.txt", "r"); //FIXME: notice this code is the same as LS... should we make a function?  or no?
+    fread(results, BUFSIZ, 1, headFile);
+
+    if (send(new_sockfd, results, strlen(results) + 1, 0) == -1) {  //TODO: fix size in case ls has more than 4096 bytes of output
+        perror("Sending results of HEAD failed.");
         return;
     }  	
 }
@@ -118,8 +155,8 @@ int main(int argc, char** argv) {
         cout << "Connection established." << endl;
 
         /* Continue to receive commands */ 
-		char command[MAX_SIZE];
-		while (1) {
+	    char command[MAX_SIZE];
+        while (1) {
 
 			if (recv(new_sockfd, command, sizeof(command), 0) == -1) {
             	perror("Error receiving command from client.");   
@@ -127,9 +164,20 @@ int main(int argc, char** argv) {
        		}
 
 	    	/* Handle commands */ 
-			if (strcmp(command, "LS") == 0) {
-				LS(new_sockfd, sockfd);
-			} else {
+			char delim[] = " ";
+            if (strcmp(command, "LS") == 0) {
+				LS(new_sockfd);
+			} 
+            else if (strncmp(command, "HEAD", 4) == 0) {
+                char* file = strtok(command, delim);
+                file = strtok(NULL, delim);
+                HEAD(new_sockfd, file);
+            }
+            else if (strcmp(command, "QUIT") == 0) {
+                close(new_sockfd);
+                break;
+            }
+            else {
                 error(2);
         	}
     	}

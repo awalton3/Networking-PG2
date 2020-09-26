@@ -16,6 +16,7 @@
 #include <sstream>
 #include <netdb.h>
 #include <sys/time.h>
+#include <unistd.h>
 #define MAX_SIZE 4096
 using namespace std;
 
@@ -57,10 +58,20 @@ void LS(int sockfd) {
 /* Change server directory */ 
 void CD(int sockfd) {
 
-	
+	//TODO: EVERYthing
 	
 }
 
+/* Get the first 10 lines of the specified file from the server */
+void HEAD(int sockfd) { 
+    //TODO: send length of filename (parse command on this end?)
+    char results[BUFSIZ];
+    if (recv(sockfd, results, sizeof(results), 0) == -1) {
+        perror("Failed to receive results of HEAD from server.");
+        return;
+    }
+	cout << results << endl; 
+}
 
 int main(int argc, char** argv) {
 
@@ -117,16 +128,26 @@ int main(int argc, char** argv) {
 	while (1) {
 
 		cout << "> "; 
-		//cin >> command; 
 		getline(cin, command);
 		sendcomm(sockfd, command); 
-
-		if (command == "LS")
+        
+        // Parse input commands 
+		if (command == "LS") {
 			LS(sockfd);  
-		else 
+        } 
+        else if (command.rfind("HEAD", 0) == 0) {  // Checks if the command starts with HEAD
+            HEAD(sockfd);
+        }
+        else if (command == "QUIT") {
+            close(sockfd);
+            break;
+        } 
+        else {
 			error(2); 
+        }
 	}
-	
+
+
     /* Generate a public encryption key */
     //char* pubKey = getPubKey();
 
