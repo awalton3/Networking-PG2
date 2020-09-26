@@ -55,22 +55,21 @@ void LS(int sockfd) {
 	cout << results << endl; 
 }
 
-/* Change server directory */ 
-void CD(int sockfd) {
-
-	//TODO: EVERYthing
-	
-}
-
 /* Get the first 10 lines of the specified file from the server */
 void HEAD(int sockfd) { 
-    //TODO: send length of filename (parse command on this end?)
+    //TODO: send length of filename (parse command on this end?) or you can do strlen
+    //of command - the amount for HEAD 
     char results[BUFSIZ];
     if (recv(sockfd, results, sizeof(results), 0) == -1) {
         perror("Failed to receive results of HEAD from server.");
         return;
     }
 	cout << results << endl; 
+}
+
+/* Change directories on the server */
+void CD(int sockfd) {
+    
 }
 
 int main(int argc, char** argv) {
@@ -137,6 +136,9 @@ int main(int argc, char** argv) {
         } 
         else if (command.rfind("HEAD", 0) == 0) {  // Checks if the command starts with HEAD
             HEAD(sockfd);
+        }
+        else if (command.rfind("CD", 0) == 0) {
+            CD(sockfd);
         }
         else if (command == "QUIT") {
             close(sockfd);

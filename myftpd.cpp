@@ -43,6 +43,7 @@ void LS(int new_sockfd) {
     
     /* Run ls on server and capture output */
     char results[BUFSIZ];
+    bzero((char *)&results, sizeof(results));  // Clear old content
     system("ls -l > lsRes.txt");
     
     /* Return results to client */
@@ -57,17 +58,15 @@ void LS(int new_sockfd) {
 
 /* Get the first 10 lines of the specified file */
 void HEAD(int new_sockfd, char* file) {
-    
-    cout << "file is : " << file << endl;
-    
+
     // Check whether file exists
     struct stat s;
     if (stat(file, &s) < 0) {
         perror("File does not exist."); //TODO: return -1 to client
-        if (send(new_sockfd, -1, 1, 0) == -1) {  //TODO: fix size in case ls has more than 4096 bytes of output
+        /*if (send(new_sockfd, -1, 1, 0) == -1) {  //TODO: fix size in case ls has more than 4096 bytes of output
             perror("Sending HEAD error code failed.");
             return;
-        }             
+        }      */  // Might need to pass the -1 back in a struct       
         return;
     }
     
@@ -78,17 +77,44 @@ void HEAD(int new_sockfd, char* file) {
     strcat(head_cmd, end_cmd);
     
     // Execute command
-    system(head_cmd);
+    system(head_cmd);  //FIXME: check if fails?  send error to client?
     
     // Return results to client 
     char results[BUFSIZ];
+    bzero((char *)&results, sizeof(results));  // Clear old content
     FILE* headFile = fopen("headRes.txt", "r"); //FIXME: notice this code is the same as LS... should we make a function?  or no?
     fread(results, BUFSIZ, 1, headFile);
 
-    if (send(new_sockfd, results, strlen(results) + 1, 0) == -1) {  //TODO: fix size in case ls has more than 4096 bytes of output
+    if (send(new_sockfd, results, strlen(results) + 1, 0) == -1) {  //TODO: fix size in case HEAD has more than 4096 bytes of output
         perror("Sending results of HEAD failed.");
         return;
     }  	
+}
+
+/* Change directories */
+void CD(int new_sockfd, char* dir) {
+    
+    // Check whether directory exists
+    struct stat s;
+    if (stat(dir, &s) < 0) {
+        perror("Directory does not exist."); //TODO: return -2 to client
+        /*if (send(new_sockfd, -1, 1, 0) == -1) {  
+            perror("Sending HEAD error code failed.");
+            return;
+        }      */  // Might need to pass the -1 back in a struct       
+        return;
+    }
+
+    // Execute command
+    if (chdir(dir) < 0) {
+        perror("Error changing directory.");   // TODO: send error (-1) to client
+        return;
+    }
+
+    // Return success message to client
+    //TODO: send 1 back upon success
+    cout << "just changed dir yo " << endl;
+
 }
 
 int main(int argc, char** argv) {
@@ -172,6 +198,11 @@ int main(int argc, char** argv) {
                 char* file = strtok(command, delim);
                 file = strtok(NULL, delim);
                 HEAD(new_sockfd, file);
+            }
+            else if (strncmp(command, "CD", 2) == 0) {
+                char* dir = strtok(command, delim); //FIXME: this is duplicated 
+                dir = strtok(NULL, delim);
+                CD(new_sockfd, dir);
             }
             else if (strcmp(command, "QUIT") == 0) {
                 close(new_sockfd);
