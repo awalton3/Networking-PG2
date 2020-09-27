@@ -22,6 +22,10 @@
 
 using namespace std;
 
+typedef struct info_struct {
+	short int fn_size; 
+} info_struct; 
+
 /* Display error messages */
 void error(int code) {
     switch (code) {
@@ -94,14 +98,14 @@ void HEAD(int new_sockfd, char* file) {
 /* Change directories */
 void CD(int new_sockfd, char* dir) {
     
-    // Check whether directory exists
+    // check whether directory exists
     struct stat s;
     if (stat(dir, &s) < 0) {
-        perror("Directory does not exist."); //TODO: return -2 to client
+        perror("directory does not exist."); //todo: return -2 to client
         /*if (send(new_sockfd, -1, 1, 0) == -1) {  
-            perror("Sending HEAD error code failed.");
+            perror("sending head error code failed.");
             return;
-        }      */  // Might need to pass the -1 back in a struct       
+        }      */  // might need to pass the -1 back in a struct       
         return;
     }
 
@@ -114,7 +118,47 @@ void CD(int new_sockfd, char* dir) {
     // Return success message to client
     //TODO: send 1 back upon success
     cout << "just changed dir yo " << endl;
+}
 
+void DN(int new_sockfd) {
+
+	cout << "Serverside: In DN \n"; 
+	
+	// Get filename size from client
+	info_struct* info; 
+	if(recv(new_sockfd, &info, sizeof(info), 0) == -1) {
+		perror("Error receiving filename size from client"); 
+		return; 
+	} 
+
+	cout << "File size: " << info->fn_size << endl; 
+
+	// Get filename from client 
+	char filename[MAX_SIZE]; 
+	if(recv(new_sockfd, filename, sizeof(filename), 0) == -1) {
+		perror("Error receiving filename size from client"); 
+		return; 
+	} 
+
+	cout << "Filename: " << filename << endl; 
+
+	// Check if file exists 
+    struct stat s;
+    if (stat(filename, &s) < 0) {
+        perror("file does not exist"); //todo: return -2 to client
+        /*if (send(new_sockfd, -1, 1, 0) == -1) {  
+            perror("sending head error code failed.");
+            return;
+        }      */  // might need to pass the -1 back in a struct       
+        return; 
+    }
+
+	// Read file and send contents to client
+	char file_content[MAX_SIZE];
+	FILE* file_to_dn = fopen(filename, "r");
+    fread(file_content, MAX_SIZE, 1, file_to_dn);
+
+	cout << "File content: \n" << file_content << endl; 
 }
 
 int main(int argc, char** argv) {
@@ -203,6 +247,10 @@ int main(int argc, char** argv) {
                 char* dir = strtok(command, delim); //FIXME: this is duplicated 
                 dir = strtok(NULL, delim);
                 CD(new_sockfd, dir);
+            }
+            else if (strncmp(command, "DN", 2) == 0) {
+				cout << "About to enter DN on serverside...\n"; 
+                DN(new_sockfd);
             }
             else if (strcmp(command, "QUIT") == 0) {
                 close(new_sockfd);

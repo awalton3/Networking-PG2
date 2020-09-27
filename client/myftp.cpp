@@ -20,6 +20,10 @@
 #define MAX_SIZE 4096
 using namespace std;
 
+typedef struct info_struct {
+	short int fn_size;  
+} info_struct;
+
 /* Display error messages */
 void error(int code) {
     switch (code) {
@@ -70,6 +74,37 @@ void HEAD(int sockfd) {
 /* Change directories on the server */
 void CD(int sockfd) {
     
+}
+
+/* Download a file from the server */ 
+void DN(int sockfd, char* filename) {
+
+	cout << "Clientside: in DN function \n"; 
+
+	// Get filename size
+	short int fn_size = strlen(filename) + 1;
+
+	cout << "Filename size: " << fn_size << endl; 
+
+   	// Send size and filename to server
+	info_struct* info; 
+	info->fn_size = htonl(fn_size); 
+
+	cout << "Computed hton: " << info->fn_size << endl; 
+
+	if (send(sockfd, &info, sizeof(info_struct), 0) == -1) {
+        perror("Error sending filename size to server."); 
+        return;
+    }
+
+	cout << "Sent filename size to server \n"; 
+
+	if (send(sockfd, filename, strlen(filename) + 1, 0) == -1) {
+        perror("Error sending filename to server."); 
+        return;
+    }
+
+	cout << "Sent filename to server \n"; 
 }
 
 int main(int argc, char** argv) {
@@ -129,7 +164,17 @@ int main(int argc, char** argv) {
 		cout << "> "; 
 		getline(cin, command);
 		sendcomm(sockfd, command); 
-        
+
+
+		// Parse input
+		char command_cstr[BUFSIZ]; 
+		strcpy(command_cstr, command.c_str()); 
+		char* token = strtok(command_cstr, " ");	
+		while (token != NULL) {
+			cout << "ARGS: " << token << endl; 
+			token = strtok(NULL, " "); 
+		}
+
         // Parse input commands 
 		if (command == "LS") {
 			LS(sockfd);  
@@ -140,6 +185,9 @@ int main(int argc, char** argv) {
         else if (command.rfind("CD", 0) == 0) {
             CD(sockfd);
         }
+		else if (command.rfind("DN", 0) == 0) {
+			DN(sockfd, token); 	
+		}
         else if (command == "QUIT") {
             close(sockfd);
             break;
