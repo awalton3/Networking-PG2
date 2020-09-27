@@ -22,6 +22,7 @@ using namespace std;
 
 typedef struct info_struct {
 	short int fn_size;  
+	int f_size; 
 } info_struct;
 
 /* Display error messages */
@@ -78,16 +79,20 @@ void CD(int sockfd) {
 
 /* Download a file from the server */ 
 void DN(int sockfd, char* filename) {
-    cout << filename << endl;
+
+	cout << "In DN on client side \n"; 
+    cout << "Filename on client side: " << filename << endl;
 
 	// Get filename size
 	short int fn_size = strlen(filename) + 1;
 
-   	// Send size and filename to server
-	info_struct* info; 
-	info->fn_size = htons(fn_size); 
+	cout << "Fn_size: " << fn_size << endl; 
 
-	cout << "Computed hton: " << info->fn_size << endl; 
+   	// Send filename size to server 
+	info_struct info; 
+	info.fn_size = htons(fn_size); 
+
+	cout << "Computed hton: " << info.fn_size << endl; 
 
 	if (send(sockfd, &info, sizeof(info_struct), 0) == -1) {
         perror("Error sending filename size to server."); 
@@ -96,12 +101,42 @@ void DN(int sockfd, char* filename) {
 
 	cout << "Sent filename size to server \n"; 
 
-	if (send(sockfd, filename, strlen(filename) + 1, 0) == -1) {
+	// Send filename to server 
+	if (send(sockfd, filename, fn_size, 0) == -1) {
         perror("Error sending filename to server."); 
         return;
-    }
-
+	}
 	cout << "Sent filename to server \n"; 
+
+	// Receive md5sum hash from server 
+	char hash[BUFSIZ];
+    if (recv(sockfd, hash, sizeof(hash), 0) == -1) {
+        perror("Failed to receive hash from server");
+        return;
+    } 
+	cout << "Received hash: " << hash << endl; 
+
+	// Receive filesize from server 
+    if (recv(sockfd, &info, sizeof(info), 0) == -1) {
+        perror("Failed to receive filesize from server.");
+        return;
+    }
+	info.f_size = ntohl(info.f_size); 
+	cout << "Received filesize (actual): " << info.f_size << endl;  
+
+	//Receive file in 4096 chunks 
+	int nread = 0; 
+	while (nread < info.f_size) {
+		char chunk[MAX_SIZE]; 
+		if (recv(sockfd, chunk, sizeof(chunk), 0) == -1) {
+        	perror("Failed to receive filesize from server.");
+        	return; 
+    	}
+		cout << strlen(chunk) + 1 << endl; //TODO need to write this to a file eventually 
+		nread = nread + strlen(chunk) + 1;
+	} 
+
+	cout << "Total: " << nread; 
 }
 
 int main(int argc, char** argv) {
