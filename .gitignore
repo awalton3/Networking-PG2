@@ -1,6 +1,8 @@
-# Ignore the following files
+#Ignore the following files
 *.o
 *.swp
 myftp
 myftpd
 *.txt
+*.pdf
+*.mp4
