@@ -78,17 +78,14 @@ void CD(int sockfd) {
 
 /* Download a file from the server */ 
 void DN(int sockfd, char* filename) {
-
-	cout << "Clientside: in DN function \n"; 
+    cout << filename << endl;
 
 	// Get filename size
 	short int fn_size = strlen(filename) + 1;
 
-	cout << "Filename size: " << fn_size << endl; 
-
    	// Send size and filename to server
 	info_struct* info; 
-	info->fn_size = htonl(fn_size); 
+	info->fn_size = htons(fn_size); 
 
 	cout << "Computed hton: " << info->fn_size << endl; 
 
@@ -169,12 +166,9 @@ int main(int argc, char** argv) {
 		// Parse input
 		char command_cstr[BUFSIZ]; 
 		strcpy(command_cstr, command.c_str()); 
-		char* token = strtok(command_cstr, " ");	
-		while (token != NULL) {
-			cout << "ARGS: " << token << endl; 
-			token = strtok(NULL, " "); 
-		}
-
+		char* token = strtok(command_cstr, " ");		
+		token = strtok(NULL, " "); 
+		
         // Parse input commands 
 		if (command == "LS") {
 			LS(sockfd);  
@@ -187,7 +181,7 @@ int main(int argc, char** argv) {
         }
 		else if (command.rfind("DN", 0) == 0) {
 			DN(sockfd, token); 	
-		}
+        }
         else if (command == "QUIT") {
             close(sockfd);
             break;

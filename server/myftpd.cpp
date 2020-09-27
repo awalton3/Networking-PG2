@@ -42,6 +42,13 @@ void error(int code) {
 }
 
 
+/* Compute file size */
+int file_sz(char* filename) {
+    ifstream filestr(filename);
+    filestr.seekg(0, ios::end);
+    return filestr.tellg();
+}
+
 /* Execute LS command and return results to client */ 
 void LS(int new_sockfd) {
     
@@ -125,13 +132,16 @@ void DN(int new_sockfd) {
 	cout << "Serverside: In DN \n"; 
 	
 	// Get filename size from client
-	info_struct* info; 
+	info_struct info; 
 	if(recv(new_sockfd, &info, sizeof(info), 0) == -1) {
 		perror("Error receiving filename size from client"); 
 		return; 
 	} 
+    cout << "received size from client" << endl; 
+    cout << info.fn_size << endl;
 
-	cout << "File size: " << info->fn_size << endl; 
+	info.fn_size = ntohs(info.fn_size);
+    cout << "File size: " << info.fn_size << endl; 
 
 	// Get filename from client 
 	char filename[MAX_SIZE]; 
@@ -152,10 +162,17 @@ void DN(int new_sockfd) {
         }      */  // might need to pass the -1 back in a struct       
         return; 
     }
+    
+    // Get file size 
+    ifstream filestr(filename);
+    filestr.seekg(0, ios::end);
+    int file_size = file_sz(filename);
+    cout << "filesize: " << file_size << endl;
 
 	// Read file and send contents to client
 	char file_content[MAX_SIZE];
 	FILE* file_to_dn = fopen(filename, "r");
+    
     fread(file_content, MAX_SIZE, 1, file_to_dn);
 
 	cout << "File content: \n" << file_content << endl; 
