@@ -28,6 +28,7 @@ using namespace std;
 typedef struct info_struct {
 	short int fn_size; 
 	int f_size; 
+    int status;
 } info_struct; 
 
 /* Display error messages */
@@ -53,12 +54,20 @@ int file_sz(char* filename) {
     return filestr.tellg(); // returns 32-bit integer 
 }
 
+/* Return true if the input file exists */
 bool file_exist(char* filename) {
 	struct stat s;
     if (stat(filename, &s) < 0) {
 		return false; 
     }
 	return true; 
+}
+
+/* Return true if the lengths are equal */
+bool same_len(char* filename, short int fn_size) {
+    if ((strlen(filename) + 1) == fn_size)
+        return true;
+    return false;
 }
 
 char* md5sum(char* filename) {
@@ -161,6 +170,7 @@ void CD(int new_sockfd, char* dir) {
     cout << "just changed dir yo " << endl;
 }
 
+/* Send the requested file in chunks to the client */ 
 void DN(int new_sockfd) {
 
 	cout << "Serverside: Entered DN \n"; 
@@ -174,7 +184,7 @@ void DN(int new_sockfd) {
 
     cout << "Received fn_size: " << info.fn_size << endl;
 
-	info.fn_size = ntohs(info.fn_size);
+	info.fn_size = ntohs(info.fn_size);  //TODO: use this as a check against the size of the filename that is received
 
     cout << "Converted fn_size: " << info.fn_size << endl; 
 
@@ -182,7 +192,7 @@ void DN(int new_sockfd) {
 	char filename[BUFSIZ]; 
 	bzero((char*) &filename, sizeof(filename));
     if(recv(new_sockfd, filename, sizeof(filename), 0) == -1) {
-		perror("Error receiving filename size from client"); 
+		perror("Error receiving filename from client"); 
 		return; 
 	} 
 	cout << "Received filename: " << filename << endl; 
@@ -196,13 +206,14 @@ void DN(int new_sockfd) {
 
 	// Send md5sum hash to client 
 	char* hash = md5sum(filename); 
+    /*char hash[MAX_SIZE] = {0};
+    strcpy(hash, md5sum(filename));*/
 	cout << "Calculated md5sum: " << hash << endl; 
 
     if (send(new_sockfd, hash, strlen(hash) + 1, 0) == -1) { 
 		perror("Error sending md5sum hash to client");
         return;
-    } 
-
+    }
 	cout << "Sent md5sum hash to client \n"; 
 
 	// Send file size to client 
@@ -233,7 +244,7 @@ void DN(int new_sockfd) {
 		nread = nread + amt_read;  
 
         cout << "nread: " << nread << endl << endl;
-        cout << file_content << endl << endl;
+        cout << file_content << "!!!!!" << endl << endl;
      
 		if (send(new_sockfd, file_content, MAX_SIZE, 0) == -1) { 
 			perror("Error sending file content to client");
@@ -242,6 +253,64 @@ void DN(int new_sockfd) {
 	}
 
 	cout << "##### Total read: #####" << nread << endl; 
+}
+
+/* Create new directory specified by client */
+void MKDIR(int new_sockfd) {
+    
+    // Get length of directory name from client
+	info_struct info; 
+	if(recv(new_sockfd, &info, sizeof(info), 0) == -1) {
+		perror("Error receiving directory name size from client"); 
+		return; 
+	} 
+    
+    // Convert to host byte order
+    info.fn_size = ntohs(info.fn_size);  //TODO: use this as a check against the size of the filename that is received
+
+    cout << "Converted fn_size: " << info.fn_size << endl; 
+    
+    // Receive directory name
+	char dirname[BUFSIZ]; 
+	bzero((char*) &dirname, sizeof(dirname));
+    if(recv(new_sockfd, dirname, sizeof(dirname), 0) == -1) {
+		perror("Error receiving dirname from client"); 
+		return; 
+	} 
+
+    cout << "New dir name: " << dirname << endl;
+    
+    // Compare directory name lengths
+    if (!same_len(dirname, info.fn_size)) {
+        // TODO: send an error code back?
+    }
+
+    // Check if directory already exists
+    info_struct s;
+    if (file_exist(dirname)) {
+        s.status = htonl(-2);
+        cout << "ALREADY exists " << endl;
+    }
+    else {
+        // Create a new directory
+        char mkdir_cmd[MAX_SIZE] = "mkdir ";
+        strcat(mkdir_cmd, dirname);
+        if (system(mkdir_cmd) < 0) { // Unable to create directory
+            s.status = htonl(-1);
+        }
+        else {  // Directory successfully created
+            s.status = htonl(1);
+            cout << "CREATED " << s.status << endl;
+        }
+
+    }
+    cout << s.status << endl;
+    // Return status to the client
+    if(send(new_sockfd, &s, sizeof(s), 0) == -1) {
+		perror("Error sending MKDIR status to client"); 
+		return; 
+	} 
+
 }
 
 int main(int argc, char** argv) {
@@ -333,6 +402,9 @@ int main(int argc, char** argv) {
             }
             else if (strncmp(command, "DN", 2) == 0) {
                 DN(new_sockfd);
+            }
+            else if (strncmp(command, "MKDIR", 5) == 0) {
+                MKDIR(new_sockfd);
             }
             else if (strcmp(command, "QUIT") == 0) {
                 close(new_sockfd);

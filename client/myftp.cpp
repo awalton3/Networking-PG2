@@ -22,7 +22,8 @@ using namespace std;
 
 typedef struct info_struct {
 	short int fn_size;  
-	int f_size; 
+	int f_size;
+    short int status; 
 } info_struct;
 
 /* Display error messages */
@@ -141,12 +142,61 @@ void DN(int sockfd, char* filename) {
         // Append chunk to local copy of the file
         fputs(chunk, new_file);
 	    nread = nread + strlen(chunk) + 1;
-		cout << "**** nread: " << nread << endl; //TODO need to write this to a file eventually 
+		cout << "**** nread: " << nread << endl; 
         cout << chunk << endl << endl;
         fclose(new_file);  //FIXME: move this and opening file outside of while loop
 	} 
 
 	cout << "##### Total: " << nread << endl; 
+}
+
+/* Create a directory on the server */ 
+void MKDIR(int sockfd, char* dirname) {
+    // Get dirname size
+	short int dn_size = strlen(dirname) + 1;
+
+	cout << "dn_size: " << dn_size << endl; 
+
+   	// Send dirname size to server 
+	info_struct info; 
+	info.fn_size = htons(dn_size); 
+    if (send(sockfd, &info, sizeof(info_struct), 0) == -1) {
+        perror("Error sending dirname size to server."); 
+        return;
+    }
+
+    // Send filename to server 
+	if (send(sockfd, dirname, dn_size, 0) == -1) {
+        perror("Error sending dirname to server."); 
+        return;
+	}
+	cout << "Sent dirname to server \n"; 
+
+    // Receive MKDIR status from server
+    info_struct s; 
+    if (recv(sockfd, &s, sizeof(s), 0) == -1) {
+        perror("Failed to receive MKDIR status from server.");
+        return;
+    }
+    
+    // Display status
+    cout << "raw: " << s.status << endl;
+    s.status = ntohl(s.status);
+    cout << "conv. " << s.status << endl;
+    switch (s.status) {
+        case 1:
+            cout << "The directory was successfully made" << endl;
+            break;
+        case -1:
+            cout << "Error in making directory" << endl;
+            break;
+        case -2:
+            cout << "The directory already exists on server" << endl;
+            break;
+        default:
+            cout << "An unknown error occurred" << endl;
+            break;
+    } 
 }
 
 int main(int argc, char** argv) {
@@ -226,6 +276,9 @@ int main(int argc, char** argv) {
         }
 		else if (command.rfind("DN", 0) == 0) {
 			DN(sockfd, token); 	
+        }
+        else if (command.rfind("MKDIR", 0) == 0) {
+            MKDIR(sockfd, token);
         }
         else if (command == "QUIT") {
             close(sockfd);
