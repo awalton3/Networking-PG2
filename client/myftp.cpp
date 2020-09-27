@@ -155,8 +155,6 @@ void MKDIR(int sockfd, char* dirname) {
     // Get dirname size
 	short int dn_size = strlen(dirname) + 1;
 
-	cout << "dn_size: " << dn_size << endl; 
-
    	// Send dirname size to server 
 	info_struct info; 
 	info.fn_size = htons(dn_size); 
@@ -170,20 +168,17 @@ void MKDIR(int sockfd, char* dirname) {
         perror("Error sending dirname to server."); 
         return;
 	}
-	cout << "Sent dirname to server \n"; 
 
     // Receive MKDIR status from server
-    info_struct s; 
-    if (recv(sockfd, &s, sizeof(s), 0) == -1) {
+    int code = 0;
+    if (recv(sockfd, &code, sizeof(code), 0) == -1) {
         perror("Failed to receive MKDIR status from server.");
         return;
     }
     
-    // Display status
-    cout << "raw: " << s.status << endl;
-    s.status = ntohl(s.status);
-    cout << "conv. " << s.status << endl;
-    switch (s.status) {
+    // Display status 
+    code = ntohl(code);
+    switch (code) {
         case 1:
             cout << "The directory was successfully made" << endl;
             break;

@@ -266,9 +266,7 @@ void MKDIR(int new_sockfd) {
 	} 
     
     // Convert to host byte order
-    info.fn_size = ntohs(info.fn_size);  //TODO: use this as a check against the size of the filename that is received
-
-    cout << "Converted fn_size: " << info.fn_size << endl; 
+    info.fn_size = ntohs(info.fn_size);  //TODO: use this as a check against the size of the filename that is received  
     
     // Receive directory name
 	char dirname[BUFSIZ]; 
@@ -277,8 +275,6 @@ void MKDIR(int new_sockfd) {
 		perror("Error receiving dirname from client"); 
 		return; 
 	} 
-
-    cout << "New dir name: " << dirname << endl;
     
     // Compare directory name lengths
     if (!same_len(dirname, info.fn_size)) {
@@ -286,27 +282,25 @@ void MKDIR(int new_sockfd) {
     }
 
     // Check if directory already exists
-    info_struct s;
+    int code;
     if (file_exist(dirname)) {
-        s.status = htonl(-2);
-        cout << "ALREADY exists " << endl;
+        code = htonl(-2);
     }
     else {
         // Create a new directory
         char mkdir_cmd[MAX_SIZE] = "mkdir ";
         strcat(mkdir_cmd, dirname);
         if (system(mkdir_cmd) < 0) { // Unable to create directory
-            s.status = htonl(-1);
+            code = htonl(-1);
         }
         else {  // Directory successfully created
-            s.status = htonl(1);
-            cout << "CREATED " << s.status << endl;
+            code = htonl(1);
         }
 
     }
-    cout << s.status << endl;
+
     // Return status to the client
-    if(send(new_sockfd, &s, sizeof(s), 0) == -1) {
+    if(send(new_sockfd, &code, sizeof(code), 0) == -1) {
 		perror("Error sending MKDIR status to client"); 
 		return; 
 	} 
