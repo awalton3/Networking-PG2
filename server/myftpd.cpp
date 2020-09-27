@@ -81,7 +81,7 @@ char* md5sum(char* filename) {
 	return strtok(md5sum, SPACE_DELIM); // return extracted hash 
 }
 
-/* COMMAND FUNCIONTS */ 
+/* COMMAND FUNCIONS */ 
 
 /* Execute LS command and return results to client */ 
 void LS(int new_sockfd) {
@@ -104,7 +104,7 @@ void LS(int new_sockfd) {
 /* Get the first 10 lines of the specified file */
 void HEAD(int new_sockfd, char* file) {
 
-    // Check whether file exists
+    // Check whether file exists //FIXME: replace with helper function
     struct stat s;
     if (stat(file, &s) < 0) {
         perror("File does not exist."); //TODO: return -1 to client
@@ -140,7 +140,7 @@ void HEAD(int new_sockfd, char* file) {
 void CD(int new_sockfd, char* dir) {
     
     // check whether directory exists
-    struct stat s;
+    struct stat s;  //FIXME: replace with helper function
     if (stat(dir, &s) < 0) {
         perror("directory does not exist."); //todo: return -2 to client
         /*if (send(new_sockfd, -1, 1, 0) == -1) {  
@@ -180,7 +180,8 @@ void DN(int new_sockfd) {
 
 	// Get filename from client 
 	char filename[BUFSIZ]; 
-	if(recv(new_sockfd, filename, sizeof(filename), 0) == -1) {
+	bzero((char*) &filename, sizeof(filename));
+    if(recv(new_sockfd, filename, sizeof(filename), 0) == -1) {
 		perror("Error receiving filename size from client"); 
 		return; 
 	} 
@@ -217,19 +218,8 @@ void DN(int new_sockfd) {
 
 	cout << "Sent filesize to client \n"; 
 
-    /*struct stat s;
-    if (stat(filename, &s) < 0) {
-        perror("file does not exist"); //todo: return -2 to client
-        if (send(new_sockfd, -1, 1, 0) == -1) {  
-            perror("sending head error code failed.");
-            return;
-        }      // might need to pass the -1 back in a struct       
-        return; 
-    }*/ 
-    
-
 	// Read file and send contents to client
-	char file_content[MAX_SIZE]; 
+	char file_content[MAX_SIZE] = {0}; 
 	FILE* file_to_dn = fopen(filename, "r");
 
 	int nread = 0; 
@@ -238,17 +228,20 @@ void DN(int new_sockfd) {
 
 		bzero((char *)&file_content, sizeof(file_content));  // Clear old content
 
-		fread(file_content, MAX_SIZE, 1, file_to_dn); 
+		int amt_read = fread(file_content, 1, MAX_SIZE, file_to_dn); 
 		
-		nread = nread + strlen(file_content) + 1;  
+		nread = nread + amt_read;  
 
-		if (send(new_sockfd, file_content, strlen(file_content) + 1, 0) == -1) { 
+        cout << "nread: " << nread << endl << endl;
+        cout << file_content << endl << endl;
+     
+		if (send(new_sockfd, file_content, MAX_SIZE, 0) == -1) { 
 			perror("Error sending file content to client");
         	return; 
     	}
 	}
 
-	cout << "Total read: " << nread << endl; 
+	cout << "##### Total read: #####" << nread << endl; 
 }
 
 int main(int argc, char** argv) {

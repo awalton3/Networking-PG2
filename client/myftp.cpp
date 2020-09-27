@@ -41,7 +41,7 @@ void error(int code) {
 }
 
 void sendcomm(int sockfd, string command) {
-	char commandF[BUFSIZ] ; 
+	char commandF[BUFSIZ]; 
 	strcpy(commandF, command.c_str());  
 
 	if (send(sockfd, commandF, strlen(commandF) + 1, 0) == -1) {
@@ -124,19 +124,29 @@ void DN(int sockfd, char* filename) {
 	info.f_size = ntohl(info.f_size); 
 	cout << "Received filesize (actual): " << info.f_size << endl;  
 
-	//Receive file in 4096 chunks 
+	// Clear existing local copy of file
+    char clr_cmd[MAX_SIZE] = "> ";
+    strcat(clr_cmd, filename);
+    system(clr_cmd);
+    // Receive file in 4096 chunks 
 	int nread = 0; 
-	while (nread < info.f_size) {
+    while (nread < info.f_size) {
 		char chunk[MAX_SIZE]; 
+        bzero((char*) &chunk, sizeof(chunk)); // Clear memory
+        FILE* new_file = fopen(filename, "a");  // File on client side to append text to
 		if (recv(sockfd, chunk, sizeof(chunk), 0) == -1) {
         	perror("Failed to receive filesize from server.");
         	return; 
     	}
-		cout << strlen(chunk) + 1 << endl; //TODO need to write this to a file eventually 
-		nread = nread + strlen(chunk) + 1;
+        // Append chunk to local copy of the file
+        fputs(chunk, new_file);
+	    nread = nread + strlen(chunk) + 1;
+		cout << "**** nread: " << nread << endl; //TODO need to write this to a file eventually 
+        cout << chunk << endl << endl;
+        fclose(new_file);  //FIXME: move this and opening file outside of while loop
 	} 
 
-	cout << "Total: " << nread; 
+	cout << "##### Total: " << nread << endl; 
 }
 
 int main(int argc, char** argv) {
