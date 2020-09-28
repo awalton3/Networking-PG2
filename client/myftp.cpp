@@ -70,7 +70,20 @@ void LS(int sockfd) {
 /* Get the first 10 lines of the specified file from the server */
 void HEAD(int sockfd) { 
     //TODO: send length of filename (parse command on this end?) or you can do strlen
-    //of command - the amount for HEAD 
+    //of command - the amount for HEAD
+    
+    // Receive file size
+    int file_size = 0;
+    if (recv(sockfd, &file_size, sizeof(file_size), 0) == -1) {
+        perror("Failed to receive file sz from server");
+        return;
+    }
+    file_size = ntohl(file_size);
+    if (file_size == -1) {
+        cout << "File does not exist on server" << endl;
+        return;
+    }
+
     char results[BUFSIZ];
     if (recv(sockfd, results, sizeof(results), 0) == -1) {
         perror("Failed to receive results of HEAD from server.");
@@ -81,7 +94,22 @@ void HEAD(int sockfd) {
 
 /* Change directories on the server */
 void CD(int sockfd) {
-    
+    // recv status 
+    int code  = 0;
+    if (recv(sockfd, &code, sizeof(code), 0) == -1) {
+        perror("Failed to receive code from server");
+        return;
+    }
+    code = ntohl(code);
+    if (code == -2) {
+        cout << "The directory does not exist on server " << endl;
+    }
+    else if (code == -1) {
+        cout << "Error in changing directory" << endl;
+    }
+    else if (code == 1) {
+        cout << "Changed current directory" << endl;
+    }
 }
 
 /* Remove a file from the server */ 

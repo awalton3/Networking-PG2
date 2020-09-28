@@ -113,61 +113,74 @@ void LS(int new_sockfd) {
 /* Get the first 10 lines of the specified file */
 void HEAD(int new_sockfd, char* file) {
 
-    // Check whether file exists //FIXME: replace with helper function
-    struct stat s;
-    if (stat(file, &s) < 0) {
-        perror("File does not exist."); //TODO: return -1 to client
-        /*if (send(new_sockfd, -1, 1, 0) == -1) {  //TODO: fix size in case ls has more than 4096 bytes of output
+    // Check whether file exists 
+    int file_size = 0;
+    if (!file_exist(file)) {
+        file_size = htonl(-1);
+        if (send(new_sockfd, &file_size, sizeof(file_size), 0) == -1) { 
             perror("Sending HEAD error code failed.");
-            return;
-        }      */  // Might need to pass the -1 back in a struct       
+        }      
         return;
     }
-    
-    // Create command
-    char head_cmd[MAX_SIZE] = "head ";
-    char end_cmd[15] = " > headRes.txt";
-    strcat(head_cmd, file);
-    strcat(head_cmd, end_cmd);
-    
-    // Execute command
-    system(head_cmd);  //FIXME: check if fails?  send error to client?
-    
-    // Return results to client 
-    char results[BUFSIZ];
-    bzero((char *)&results, sizeof(results));  // Clear old content
-    FILE* headFile = fopen("headRes.txt", "r"); //FIXME: notice this code is the same as LS... should we make a function?  or no?
-    fread(results, BUFSIZ, 1, headFile);
+    else {
 
-    if (send(new_sockfd, results, strlen(results) + 1, 0) == -1) {  //TODO: fix size in case HEAD has more than 4096 bytes of output
-        perror("Sending results of HEAD failed.");
-        return;
-    }  	
+        // Send file size
+        file_size = file_sz(file);
+        file_size = htonl(file_size);
+        if (send(new_sockfd, &file_size, sizeof(file_size), 0) == -1) { 
+            perror("Sending HEAD error code failed.");
+        }         
+        
+        // Create command
+        char head_cmd[MAX_SIZE] = "head ";
+        char end_cmd[15] = " > headRes.txt";
+        strcat(head_cmd, file);
+        strcat(head_cmd, end_cmd);
+    
+        // Execute command
+        system(head_cmd);  //FIXME: check if fails?  send error to client?
+    
+        // Return results to client 
+        char results[BUFSIZ];
+        bzero((char *)&results, sizeof(results));  // Clear old content
+        FILE* headFile = fopen("headRes.txt", "r"); //FIXME: notice this code is the same as LS... should we make a function?  or no?
+        fread(results, BUFSIZ, 1, headFile);
+
+        if (send(new_sockfd, results, strlen(results) + 1, 0) == -1) {  //TODO: fix size in case HEAD has more than 4096 bytes of output
+            perror("Sending results of HEAD failed.");
+            return;
+        }  	
+
+    }
 }
 
 /* Change directories */
 void CD(int new_sockfd, char* dir) {
     
     // check whether directory exists
-    struct stat s;  //FIXME: replace with helper function
-    if (stat(dir, &s) < 0) {
-        perror("directory does not exist."); //todo: return -2 to client
-        /*if (send(new_sockfd, -1, 1, 0) == -1) {  
-            perror("sending head error code failed.");
-            return;
-        }      */  // might need to pass the -1 back in a struct       
+    int code = 0;
+    if (!file_exist(dir)) {
+        code = htonl(-2);
+        if (send(new_sockfd, &code, sizeof(code), 0) == -1) { 
+            perror("Sending CD error failed");
+        }      
         return;
     }
-
+    
     // Execute command
-    if (chdir(dir) < 0) {
-        perror("Error changing directory.");   // TODO: send error (-1) to client
+    if (chdir(dir) < 0) { 
+        code = htonl(-1);
+        if (send(new_sockfd, &code, sizeof(code), 0) == -1) { 
+            perror("Sending CD error failed");
+        }  
         return;
     }
 
     // Return success message to client
-    //TODO: send 1 back upon success
-    cout << "just changed dir yo " << endl;
+    code = htonl(1);
+    if (send(new_sockfd, &code, sizeof(code), 0) == -1) { 
+        perror("Sending CD code failed");
+    }  
 }
 
 /* Remove client requested file */ 
