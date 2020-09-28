@@ -244,8 +244,6 @@ void RM(int new_sockfd) {
 
 /* Send the requested file in chunks to the client */ 
 void DN(int new_sockfd) {
-
-	cout << "Serverside: Entered DN \n"; 
 	
 	// Get filename size from client
 	info_struct info; 
@@ -254,11 +252,7 @@ void DN(int new_sockfd) {
 		return; 
 	} 
 
-    cout << "Received fn_size: " << info.fn_size << endl;
-
 	info.fn_size = ntohs(info.fn_size);  //TODO: use this as a check against the size of the filename that is received
-
-    cout << "Converted fn_size: " << info.fn_size << endl; 
 
 	// Get filename from client 
 	char filename[BUFSIZ]; 
@@ -267,26 +261,17 @@ void DN(int new_sockfd) {
 		perror("Error receiving filename from client"); 
 		return; 
 	} 
-	cout << "Received filename: " << filename << endl; 
 
 	// Check if file exists 
 	if (!file_exist(filename)) {
 		cout << "Received file does not exist \n"; 
-		// TODO return error code to client 
+		// Return error code to client 
+        int code = -1;
+        if (send(new_sockfd, &code, sizeof(code), 0) == -1) { 
+		    perror("Error sending code to client");
+        }
 		return; 
 	}
-
-	// Send md5sum hash to client 
-	char* hash = md5sum(filename); 
-    /*char hash[MAX_SIZE] = {0};
-    strcpy(hash, md5sum(filename));*/
-	cout << "Calculated md5sum: " << hash << endl; 
-
-    if (send(new_sockfd, hash, strlen(hash) + 1, 0) == -1) { 
-		perror("Error sending md5sum hash to client");
-        return;
-    }
-	cout << "Sent md5sum hash to client \n"; 
 
 	// Send file size to client 
 	int file_size = file_sz(filename); 	
@@ -300,9 +285,18 @@ void DN(int new_sockfd) {
     }
 
 	cout << "Sent filesize to client \n"; 
+	// Send md5sum hash to client 
+	char* hash = md5sum(filename); 
+	cout << "Calculated md5sum: " << hash << endl; 
+
+    if (send(new_sockfd, hash, strlen(hash) + 1, 0) == -1) { 
+		perror("Error sending md5sum hash to client");
+        return;
+    }
+	cout << "Sent md5sum hash to client \n"; 
 
 	// Read file and send contents to client
-	char file_content[MAX_SIZE] = {0}; 
+	char file_content[MAX_SIZE + 1]; 
 	FILE* file_to_dn = fopen(filename, "r");
 
 	int nread = 0; 
@@ -311,11 +305,11 @@ void DN(int new_sockfd) {
 
 		bzero((char *)&file_content, sizeof(file_content));  // Clear old content
 
-		int amt_read = fread(file_content, 1, MAX_SIZE, file_to_dn); 
+		int amt_read = fread(file_content, sizeof(char), MAX_SIZE, file_to_dn); 
 		
 		nread = nread + amt_read;  
 
-        cout << "nread: " << nread << endl << endl;
+        cout << "nread: " << nread << "amt_read: " << amt_read << endl << endl;
         cout << file_content << "!!!!!" << endl << endl;
      
 		if (send(new_sockfd, file_content, MAX_SIZE, 0) == -1) { 
