@@ -284,8 +284,27 @@ void UP(int new_sockfd) {
 	f_size = ntohl(f_size); 
 	cout << "FILE SIZE: \n" << f_size << endl;
 	
-	//Receive file from client in chunks 
+	// Clear existing local copy of file
+    char clr_cmd[MAX_SIZE] = "> ";
+    strcat(clr_cmd, filename);
+    system(clr_cmd);
+    // Receive file in 4096 chunks 
+	int nread = 0; 
+    while (nread < f_size) {
+		char chunk[MAX_SIZE + sizeof(char)]; 
+        bzero((char*) &chunk, sizeof(chunk)); // Clear memory
+        FILE* new_file = fopen(filename, "a");  // File on client side to append text to
+		if (recv(new_sockfd, chunk, sizeof(chunk), 0) == -1) {
+        	perror("Failed to receive filesize from server.");
+        	return; 
+    	}
+        // Append chunk to local copy of the file
+        fputs(chunk, new_file);
+	    nread = nread + strlen(chunk);
+    	fclose(new_file);  //FIXME: move this and opening file outside of while loop
+	} 
 
+	cout << "FINISHED \n"; 
 }
 
 /* Send the requested file in chunks to the client */ 
@@ -300,7 +319,7 @@ void DN(int new_sockfd) {
 
 	info.fn_size = ntohs(info.fn_size);  //TODO: use this as a check against the size of the filename that is received
 
-    cout << "Converted fn_size: " << info.fn_size << endl; 
+    //cout << "Converted fn_size: " << info.fn_size << endl; 
 
 	// Get filename from client 
 	char filename[BUFSIZ]; 
