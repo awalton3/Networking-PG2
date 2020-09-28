@@ -152,7 +152,10 @@ void UP(int sockfd, char* filename) {
 
 	// Get filename size
 	short int fn_size = strlen(filename) + 1;
-	fn_size = htons(fn_size); 
+    
+    //cout << "fsize " << fn_size << endl;
+	
+    fn_size = htons(fn_size); 
 
    	// Send filename size to server 
 	if (send(sockfd, &fn_size, sizeof(fn_size), 0) == -1) {
@@ -173,19 +176,19 @@ void UP(int sockfd, char* filename) {
         return;
     }
 
-	code = ntohl(code); 
+	code = ntohl(code);
+    //cout << "code " << code << endl; 
 	if (code == 1) {
 
 		// Send file size to server 
 		int file_size = file_sz(filename); 
-		file_size = htonl(file_size); 
-		cout << file_size << endl; 
-		if (send(sockfd, &file_size, sizeof(file_size), 0) == -1) {
+		int fsend = htonl(file_size);  
+		if (send(sockfd, &fsend, sizeof(fsend), 0) == -1) {
         	perror("Error sending file size to server."); 
         	return;
 		}
 
-		//Upload file
+		// Upload file
 
 		// Send md5sum hash to client 
 		/*char* hash = md5sum(filename); 
@@ -213,7 +216,7 @@ void UP(int sockfd, char* filename) {
     		}
 		}
 
-		cout << "*****Finished ******\n"; 
+		//cout << "*****Finished ******\n"; 
 
 	} else {
 		return; 

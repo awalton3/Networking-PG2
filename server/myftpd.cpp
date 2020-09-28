@@ -249,13 +249,11 @@ void UP(int new_sockfd) {
 	if(recv(new_sockfd, &fn_size, sizeof(fn_size), 0) == -1) {
 		perror("Error receiving filename size from client"); 
 		return; 
-	} 
-
-    //cout << "Received fn_size: " << fn_size << endl;
+	}  
 
 	fn_size = ntohs(fn_size);  
 
-    cout << "Converted fn_size: " << fn_size << endl; 
+    //cout << "Converted fn_size: " << fn_size << endl; 
 
 	// Get filename from client 
 	char filename[BUFSIZ]; 
@@ -264,9 +262,9 @@ void UP(int new_sockfd) {
 		perror("Error receiving filename from client"); 
 		return; 
 	} 
-	cout << "Received filename: " << filename << endl; 
+	//cout << "Received filename: " << filename << endl; 
 
-	//Send ack to client 
+	// Send ack to client 
 	int code = 1;
 	code = htonl(code); 
    	if(send(new_sockfd, &code, sizeof(code), 0) == -1) {			
@@ -274,7 +272,7 @@ void UP(int new_sockfd) {
 		return; 
 	} 
 
-	//Receive file size from client 
+	// Receive file size from client 
 	int f_size = 0; 
 	if(recv(new_sockfd, &f_size, sizeof(f_size), 0) == -1) {
 		perror("Error receiving filename size from client"); 
@@ -282,7 +280,7 @@ void UP(int new_sockfd) {
 	} 
 
 	f_size = ntohl(f_size); 
-	cout << "FILE SIZE: \n" << f_size << endl;
+	//cout << "FILE SIZE: \n" << f_size << endl;
 	
 	// Clear existing local copy of file
     char clr_cmd[MAX_SIZE] = "> ";
@@ -304,7 +302,7 @@ void UP(int new_sockfd) {
     	fclose(new_file);  //FIXME: move this and opening file outside of while loop
 	} 
 
-	cout << "FINISHED \n"; 
+	//cout << "FINISHED \n"; 
 }
 
 /* Send the requested file in chunks to the client */ 
@@ -498,7 +496,7 @@ int main(int argc, char** argv) {
 				return 1; 
        		}
 
-			cout << command << endl; 
+			//cout << command << endl; 
 
 	    	/* Handle commands */ 
 			char delim[] = " ";
