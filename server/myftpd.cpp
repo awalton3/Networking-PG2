@@ -300,8 +300,6 @@ void DN(int new_sockfd) {
 
 	info.fn_size = ntohs(info.fn_size);  //TODO: use this as a check against the size of the filename that is received
 
-    cout << "Converted fn_size: " << info.fn_size << endl; 
-
 	// Get filename from client 
 	char filename[BUFSIZ]; 
 	bzero((char*) &filename, sizeof(filename));
