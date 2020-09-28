@@ -170,6 +170,77 @@ void CD(int new_sockfd, char* dir) {
     cout << "just changed dir yo " << endl;
 }
 
+/* Remove client requested file */ 
+void RM(int new_sockfd) {
+	
+	//cout << "Serverside: Entered RM\n"; 
+
+	// Get filename size from client
+	short int fn_size = 0; 
+	if(recv(new_sockfd, &fn_size, sizeof(fn_size), 0) == -1) {
+		perror("Error receiving filename size from client"); 
+		return; 
+	} 
+
+    //cout << "Received fn_size: " << fn_size << endl;
+
+	fn_size = ntohs(fn_size);  
+
+    //cout << "Converted fn_size: " << fn_size << endl; 
+
+	// Get filename from client 
+	char filename[BUFSIZ]; 
+	bzero((char*) &filename, sizeof(filename));
+    if(recv(new_sockfd, filename, sizeof(filename), 0) == -1) {
+		perror("Error receiving filename from client"); 
+		return; 
+	} 
+	//cout << "Received filename: " << filename << endl; 
+
+	// Check if file exists 
+	int code; 
+	if (!file_exist(filename)) {
+		//cout << "Serverside: Received file does not exist! \n";
+		code = -1; 
+	} else {
+		//cout << "Serverside: Received file exists! \n"; 
+		code = 1; 
+	}
+
+	// Return confirmation status to client
+	code = htonl(code); 
+   	if(send(new_sockfd, &code, sizeof(code), 0) == -1) {			
+		perror("Error sending RM status to client"); 
+		return; 
+	} 
+
+	// Received confirmation from client to delete file 
+	char confirm[BUFSIZ]; 
+	if(recv(new_sockfd, confirm, sizeof(confirm), 0) == -1) {
+		perror("Error receiving confirmation from client"); 
+		return; 
+	} 
+	//cout << "Received confirmation: " << confirm << endl; 
+
+	// Check confirmation 
+	if (strcmp(confirm, "Yes") == 0) {
+
+		char command[BUFSIZ] = "rm "; 
+		strcat(command, filename); 
+
+		if (system(command) < 0) {
+			code = -1; 
+		} else {
+			code = 1; 
+		}
+		code = htonl(code); 
+		if(send(new_sockfd, &code, sizeof(code), 0) == -1) {			
+			perror("Error sending RM status to client"); 
+			return; 
+		} 
+	} 
+}
+
 /* Send the requested file in chunks to the client */ 
 void DN(int new_sockfd) {
 
@@ -379,6 +450,8 @@ int main(int argc, char** argv) {
 				return 1; 
        		}
 
+			cout << command << endl; 
+
 	    	/* Handle commands */ 
 			char delim[] = " ";
             if (strcmp(command, "LS") == 0) {
@@ -390,8 +463,8 @@ int main(int argc, char** argv) {
                 HEAD(new_sockfd, file);
             }
             else if (strncmp(command, "CD", 2) == 0) {
-                char* dir = strtok(command, delim); //FIXME: this is duplicated 
-                dir = strtok(NULL, delim);
+                char* dir = strtok(command, delim); 
+				dir = strtok(NULL, delim);
                 CD(new_sockfd, dir);
             }
             else if (strncmp(command, "DN", 2) == 0) {
@@ -399,6 +472,9 @@ int main(int argc, char** argv) {
             }
             else if (strncmp(command, "MKDIR", 5) == 0) {
                 MKDIR(new_sockfd);
+            }
+           	else if (strncmp(command, "RM", 2) == 0) {
+                RM(new_sockfd);
             }
             else if (strcmp(command, "QUIT") == 0) {
                 close(new_sockfd);
