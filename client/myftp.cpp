@@ -81,33 +81,34 @@ void CD(int sockfd) {
 /* Download a file from the server */ 
 void DN(int sockfd, char* filename) {
 
-	cout << "In DN on client side \n"; 
-    cout << "Filename on client side: " << filename << endl;
-
 	// Get filename size
 	short int fn_size = strlen(filename) + 1;
-
-	cout << "Fn_size: " << fn_size << endl; 
 
    	// Send filename size to server 
 	info_struct info; 
 	info.fn_size = htons(fn_size); 
-
-	cout << "Computed hton: " << info.fn_size << endl; 
 
 	if (send(sockfd, &info, sizeof(info_struct), 0) == -1) {
         perror("Error sending filename size to server."); 
         return;
     }
 
-	cout << "Sent filename size to server \n"; 
-
 	// Send filename to server 
 	if (send(sockfd, filename, fn_size, 0) == -1) {
         perror("Error sending filename to server."); 
         return;
 	}
-	cout << "Sent filename to server \n"; 
+
+	// Receive file size from server 
+    if (recv(sockfd, &info, sizeof(info), 0) == -1) {
+        perror("Failed to receive filesize from server.");
+        return;
+    }
+	info.f_size = ntohl(info.f_size); 
+    if (info.f_size == -1) {
+        cout << "File does not exist on server" << endl;
+        return;
+    }
 
 	// Receive md5sum hash from server 
 	char hash[BUFSIZ];
@@ -115,16 +116,6 @@ void DN(int sockfd, char* filename) {
         perror("Failed to receive hash from server");
         return;
     } 
-	cout << "Received hash: " << hash << endl; 
-
-	// Receive filesize from server 
-    if (recv(sockfd, &info, sizeof(info), 0) == -1) {
-        perror("Failed to receive filesize from server.");
-        return;
-    }
-	info.f_size = ntohl(info.f_size); 
-	cout << "Received filesize (actual): " << info.f_size << endl;  
-
 	// Clear existing local copy of file
     char clr_cmd[MAX_SIZE] = "> ";
     strcat(clr_cmd, filename);
@@ -132,7 +123,7 @@ void DN(int sockfd, char* filename) {
     // Receive file in 4096 chunks 
 	int nread = 0; 
     while (nread < info.f_size) {
-		char chunk[MAX_SIZE]; 
+		char chunk[MAX_SIZE + sizeof(char)]; 
         bzero((char*) &chunk, sizeof(chunk)); // Clear memory
         FILE* new_file = fopen(filename, "a");  // File on client side to append text to
 		if (recv(sockfd, chunk, sizeof(chunk), 0) == -1) {
@@ -141,7 +132,7 @@ void DN(int sockfd, char* filename) {
     	}
         // Append chunk to local copy of the file
         fputs(chunk, new_file);
-	    nread = nread + strlen(chunk) + 1;
+	    nread = nread + strlen(chunk);
 		cout << "**** nread: " << nread << endl; 
         cout << chunk << endl << endl;
         fclose(new_file);  //FIXME: move this and opening file outside of while loop
@@ -229,8 +220,7 @@ void RMDIR(int sockfd, char* dirname) {
     }
     else if (code == 1) {
         char conf[MAX_SIZE];
-        cout << "Are you sure you want to delete " << dirname << "? Enter: Yes or No" << endl;
-        cout << "> ";
+        cout << "Are you sure? ";
         cin >> conf;
         // Send confirmation to server
         if (send(sockfd, conf, strlen(conf) + 1, 0) == -1) {
