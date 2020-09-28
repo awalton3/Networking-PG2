@@ -17,6 +17,7 @@
 #include <fstream>
 #include <time.h>
 #include <stdint.h>
+#include <dirent.h>
 
 #define MAX_SIZE 4096
 #define MAX_PENDING 5
@@ -307,6 +308,81 @@ void MKDIR(int new_sockfd) {
 
 }
 
+/* Remove directory */ 
+void RMDIR(int new_sockfd) {
+    // Receive length of dir name
+    short int len = 0;
+	if(recv(new_sockfd, &len, sizeof(len), 0) == -1) {
+		perror("Error receiving directory name size from client"); 
+		return; 
+	} 
+    // Convert to host byte order
+    len = ntohs(len);   //TODO: something with comparing lengths?
+
+    // Receive dir name
+    char dirname[BUFSIZ]; 
+	bzero((char*) &dirname, sizeof(dirname));
+    if(recv(new_sockfd, dirname, sizeof(dirname), 0) == -1) {
+		perror("Error receiving dirname from client"); 
+		return; 
+	} 
+
+    // Check if dir exists / is empty
+    int code;
+    if (file_exist(dirname)) {
+        DIR *dir = opendir(dirname);
+        int n = 0;  // # of files in directory
+        while (readdir(dir) != NULL) {
+            n++;
+            if (n > 2) // More than . and .. found: the dir is not empty
+                break;
+        }
+        if (n == 2) { // Directory is empty
+            code = htonl(1);
+        }
+        else {  // Directory is not empty
+            code = htonl(-2);
+        }
+    }
+    else { // Directory does not exist
+        code = htonl(-1);
+    }
+    
+    // Return status to the client
+    if(send(new_sockfd, &code, sizeof(code), 0) == -1) {
+		perror("Error sending RMDIR status to client"); 
+		return; 
+	}
+    
+    if (code != htonl(1)) // Wait for the next command
+        return;
+
+    // Receive confirmation from client 
+    char conf[MAX_SIZE];
+    bzero((char*) &conf, sizeof(conf));
+    if(recv(new_sockfd, conf, sizeof(conf), 0) == -1) {
+		perror("Error receiving confirmation from client"); 
+		return; 
+	}
+
+    if (strcmp(conf, "Yes") == 0) {
+        // Remove the directory
+        char rm_cmd[MAX_SIZE] = "rm -r ";
+        strcat(rm_cmd, dirname); 
+        if (system(rm_cmd) < 0) { // Unable to remove directory
+            code = htonl(-1);   
+        }
+        else { // Removed directory
+            code = htonl(1);
+        }
+        // Send status to client
+        if(send(new_sockfd, &code, sizeof(code), 0) == -1) {
+		    perror("Error sending RMDIR status to client"); 
+	    	return; 
+	    }
+    }
+}
+
 int main(int argc, char** argv) {
 
     /* Parse command line arguments */
@@ -373,7 +449,7 @@ int main(int argc, char** argv) {
         /* Continue to receive commands */ 
 	    char command[MAX_SIZE];
         while (1) {
-
+            bzero((char*) &command, sizeof(command)); // Clear memory
 			if (recv(new_sockfd, command, sizeof(command), 0) == -1) {
             	perror("Error receiving command from client.");   
 				return 1; 
@@ -399,6 +475,9 @@ int main(int argc, char** argv) {
             }
             else if (strncmp(command, "MKDIR", 5) == 0) {
                 MKDIR(new_sockfd);
+            }
+            else if (strncmp(command, "RMDIR", 5) == 0) {
+                RMDIR(new_sockfd);
             }
             else if (strcmp(command, "QUIT") == 0) {
                 close(new_sockfd);

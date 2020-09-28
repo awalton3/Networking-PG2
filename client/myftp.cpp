@@ -194,6 +194,77 @@ void MKDIR(int sockfd, char* dirname) {
     } 
 }
 
+/* Remove specified, empty directory from the server */
+void RMDIR(int sockfd, char* dirname) {
+    
+    // Send length of dirname to server 
+    short int len = strlen(dirname) + 1;
+    len = htons(len);
+
+    if (send(sockfd, &len, sizeof(len), 0) == -1) {
+        perror("Error sending dirname length to server."); 
+        return;
+	}
+
+    // Send dirname to server
+    if (send(sockfd, dirname, len, 0) == -1) {
+        perror("Error sending dirname to server."); 
+        return;
+	}
+
+    // Receive status code
+    int code = 0;
+    if (recv(sockfd, &code, sizeof(code), 0) == -1) {
+        perror("Failed to receive RMDIR status from server.");
+        return;
+    }
+    
+    // Display status 
+    code = ntohl(code);
+    if (code == -1) {
+        cout << "The directory does not exist on server" << endl;
+    }
+    else if (code == -2) {
+        cout << "The directory is not empty" << endl;
+    }
+    else if (code == 1) {
+        char conf[MAX_SIZE];
+        cout << "Are you sure you want to delete " << dirname << "? Enter: Yes or No" << endl;
+        cout << "> ";
+        cin >> conf;
+        // Send confirmation to server
+        if (send(sockfd, conf, strlen(conf) + 1, 0) == -1) {
+            perror("Error sending confirmation to server."); 
+            return;
+	    }
+
+        if (strcmp(conf, "No") == 0) {
+            cout << "Delete abandoned by the user!" << endl;
+            return;
+        }
+        else if (strcmp(conf, "Yes") == 0) {
+            // Receive the status from server
+            if (recv(sockfd, &code, sizeof(code), 0) == -1) {
+                perror("Failed to receive RMDIR status from server.");
+                return;
+            }
+            // Convert to host byte order
+            code = ntohl(code);
+            // Display results
+            if (code == 1) {
+                cout << "Directory deleted" << endl;
+            }
+            else if (code == -1) {
+                cout << "Failed to delete directory" << endl;
+            }
+        }
+
+    }
+    else {
+        cout << "An unknown error occurred" << endl;
+    }
+}
+
 int main(int argc, char** argv) {
 
     /* Parse command line arguments */
@@ -274,6 +345,9 @@ int main(int argc, char** argv) {
         }
         else if (command.rfind("MKDIR", 0) == 0) {
             MKDIR(sockfd, token);
+        }
+        else if (command.rfind("RMDIR", 0) == 0) {
+            RMDIR(sockfd, token);
         }
         else if (command == "QUIT") {
             close(sockfd);
