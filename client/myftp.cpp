@@ -177,20 +177,43 @@ void UP(int sockfd, char* filename) {
 	if (code == 1) {
 
 		// Send file size to server 
-		int f_size = file_sz(filename); 
-		f_size = htonl(f_size); 
-		cout << f_size << endl; 
-		if (send(sockfd, &f_size, sizeof(f_size), 0) == -1) {
+		int file_size = file_sz(filename); 
+		file_size = htonl(file_size); 
+		cout << file_size << endl; 
+		if (send(sockfd, &file_size, sizeof(file_size), 0) == -1) {
         	perror("Error sending file size to server."); 
         	return;
 		}
 
 		//Upload file
+
+		// Send md5sum hash to client 
+		/*char* hash = md5sum(filename); 
+    if (send(new_sockfd, hash, strlen(hash) + 1, 0) == -1) { 
+		perror("Error sending md5sum hash to client");
+        return;
+    }*/ 
+
+		// Read file and send contents to client
+		char file_content[MAX_SIZE + 1]; 
+		FILE* file_to_dn = fopen(filename, "r");
+
+		int nread = 0; 
+		while (nread < file_size) {
+
+			bzero((char *)&file_content, sizeof(file_content));  // Clear old content
+
+			int amt_read = fread(file_content, sizeof(char), MAX_SIZE, file_to_dn); 
 		
-			
+        	nread = nread + amt_read; 
+     
+			if (send(sockfd, file_content, MAX_SIZE, 0) == -1) { 
+				perror("Error sending file content to client");
+        		return; 
+    		}
+		}
 
-
-
+		cout << "*****Finished ******\n"; 
 
 	} else {
 		return; 
