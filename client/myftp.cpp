@@ -51,6 +51,12 @@ void sendcomm(int sockfd, string command) {
     }
 }
 
+int file_sz(char* filename) {
+    ifstream filestr(filename);
+    filestr.seekg(0, ios::end);
+    return filestr.tellg(); // returns 32-bit integer 
+}
+
 /* List files on server */ 
 void LS(int sockfd) {
     char results[BUFSIZ];
@@ -76,6 +82,119 @@ void HEAD(int sockfd) {
 /* Change directories on the server */
 void CD(int sockfd) {
     
+}
+
+/* Remove a file from the server */ 
+void RM(int sockfd, char* filename) {
+
+	// Get filename size
+	short int fn_size = strlen(filename) + 1;
+	fn_size = htons(fn_size); 
+
+   	// Send filename size to server 
+	if (send(sockfd, &fn_size, sizeof(fn_size), 0) == -1) {
+        perror("Error sending filename size to server."); 
+        return;
+    }
+
+	// Send filename to server 
+	if (send(sockfd, filename, strlen(filename) + 1, 0) == -1) {
+        perror("Error sending filename to server."); 
+        return;
+	}
+
+	// Receive confirmation code from server 
+    int code = 0;
+    if (recv(sockfd, &code, sizeof(code), 0) == -1) {
+        perror("Failed to receive RM confirmation status from server.");
+        return;
+    }
+    
+    // Display status 
+    code = ntohl(code);
+    if (code == 1) {
+
+            cout << "Are you sure? ";  
+			char confirm[BUFSIZ]; 
+			scanf("%s", confirm); 
+
+			// If user ignores, go to prompt state
+			if (strcmp(confirm, "No") == 0) {
+				cout << "Delete abandoned by the user!\n"; 
+				return; 
+			}
+
+			// Send confirmation response to server 
+			if (send(sockfd, confirm, strlen(confirm) + 1, 0) == -1) {
+        		perror("Error sending confirmation user response to server."); 
+        		return;
+			}
+
+			// Receive confirmation from server that file has been deleted
+			int code1 = 0; 
+			if (recv(sockfd, &code1, sizeof(code1), 0) == -1) {
+        		perror("Failed to receive RM confirmation message from server.");
+        		return;
+    		}
+			code1 = ntohl(code1); 
+			if (code1 == 1) {
+				cout << "File deleted.\n"; 
+			} else {
+				cout << "Error: File was not deleted.\n"; 
+			}
+	} else {
+		cout << "File does not exist." << endl; 
+	}
+}
+
+/* Upload file to server */ 
+void UP(int sockfd, char* filename) {
+
+	// Get filename size
+	short int fn_size = strlen(filename) + 1;
+	fn_size = htons(fn_size); 
+
+   	// Send filename size to server 
+	if (send(sockfd, &fn_size, sizeof(fn_size), 0) == -1) {
+        perror("Error sending filename size to server."); 
+        return;
+    }
+
+	// Send filename to server 
+	if (send(sockfd, filename, strlen(filename) + 1, 0) == -1) {
+        perror("Error sending filename to server."); 
+        return;
+	}
+
+	// Receive acknowledgement from server
+	int code = 0;
+    if (recv(sockfd, &code, sizeof(code), 0) == -1) {
+        perror("Failed to receive ack from server.");
+        return;
+    }
+
+	code = ntohl(code); 
+	if (code == 1) {
+
+		// Send file size to server 
+		int f_size = file_sz(filename); 
+		f_size = htonl(f_size); 
+		cout << f_size << endl; 
+		if (send(sockfd, &f_size, sizeof(f_size), 0) == -1) {
+        	perror("Error sending file size to server."); 
+        	return;
+		}
+
+		//Upload file
+		
+			
+
+
+
+
+	} else {
+		return; 
+	}
 }
 
 /* Download a file from the server */ 
@@ -331,9 +450,15 @@ int main(int argc, char** argv) {
 		else if (command.rfind("DN", 0) == 0) {
 			DN(sockfd, token); 	
         }
+		else if (command.rfind("UP", 0) == 0) {
+			UP(sockfd, token); 	
+        }
         else if (command.rfind("MKDIR", 0) == 0) {
             MKDIR(sockfd, token);
         }
+        else if (command.rfind("RM", 0) == 0) {
+            RM(sockfd, token);
+		}
         else if (command.rfind("RMDIR", 0) == 0) {
             RMDIR(sockfd, token);
         }

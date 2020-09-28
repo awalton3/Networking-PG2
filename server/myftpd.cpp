@@ -17,7 +17,6 @@
 #include <fstream>
 #include <time.h>
 #include <stdint.h>
-#include <dirent.h>
 
 #define MAX_SIZE 4096
 #define MAX_PENDING 5
@@ -171,9 +170,127 @@ void CD(int new_sockfd, char* dir) {
     cout << "just changed dir yo " << endl;
 }
 
+/* Remove client requested file */ 
+void RM(int new_sockfd) {
+	
+	//cout << "Serverside: Entered RM\n"; 
+
+	// Get filename size from client
+	short int fn_size = 0; 
+	if(recv(new_sockfd, &fn_size, sizeof(fn_size), 0) == -1) {
+		perror("Error receiving filename size from client"); 
+		return; 
+	} 
+
+    //cout << "Received fn_size: " << fn_size << endl;
+
+	fn_size = ntohs(fn_size);  
+
+    //cout << "Converted fn_size: " << fn_size << endl; 
+
+	// Get filename from client 
+	char filename[BUFSIZ]; 
+	bzero((char*) &filename, sizeof(filename));
+    if(recv(new_sockfd, filename, sizeof(filename), 0) == -1) {
+		perror("Error receiving filename from client"); 
+		return; 
+	} 
+	//cout << "Received filename: " << filename << endl; 
+
+	// Check if file exists 
+	int code; 
+	if (!file_exist(filename)) {
+		//cout << "Serverside: Received file does not exist! \n";
+		code = -1; 
+	} else {
+		//cout << "Serverside: Received file exists! \n"; 
+		code = 1; 
+	}
+
+	// Return confirmation status to client
+	code = htonl(code); 
+   	if(send(new_sockfd, &code, sizeof(code), 0) == -1) {			
+		perror("Error sending RM status to client"); 
+		return; 
+	} 
+
+	// Received confirmation from client to delete file 
+	char confirm[BUFSIZ]; 
+	if(recv(new_sockfd, confirm, sizeof(confirm), 0) == -1) {
+		perror("Error receiving confirmation from client"); 
+		return; 
+	} 
+	//cout << "Received confirmation: " << confirm << endl; 
+
+	// Check confirmation 
+	if (strcmp(confirm, "Yes") == 0) {
+
+		char command[BUFSIZ] = "rm "; 
+		strcat(command, filename); 
+
+		if (system(command) < 0) {
+			code = -1; 
+		} else {
+			code = 1; 
+		}
+		code = htonl(code); 
+		if(send(new_sockfd, &code, sizeof(code), 0) == -1) {			
+			perror("Error sending RM status to client"); 
+			return; 
+		} 
+	} 
+}
+
+/* Upload file from client */  
+void UP(int new_sockfd) {
+
+	// Get filename size from client
+	short int fn_size = 0; 
+	if(recv(new_sockfd, &fn_size, sizeof(fn_size), 0) == -1) {
+		perror("Error receiving filename size from client"); 
+		return; 
+	} 
+
+    //cout << "Received fn_size: " << fn_size << endl;
+
+	fn_size = ntohs(fn_size);  
+
+    cout << "Converted fn_size: " << fn_size << endl; 
+
+	// Get filename from client 
+	char filename[BUFSIZ]; 
+	bzero((char*) &filename, sizeof(filename));
+    if(recv(new_sockfd, filename, sizeof(filename), 0) == -1) {
+		perror("Error receiving filename from client"); 
+		return; 
+	} 
+	cout << "Received filename: " << filename << endl; 
+
+	//Send ack to client 
+	int code = 1;
+	code = htonl(code); 
+   	if(send(new_sockfd, &code, sizeof(code), 0) == -1) {			
+		perror("Error sending ack to client"); 
+		return; 
+	} 
+
+	//Receive file size from client 
+	int f_size = 0; 
+	if(recv(new_sockfd, &f_size, sizeof(f_size), 0) == -1) {
+		perror("Error receiving filename size from client"); 
+		return; 
+	} 
+
+	f_size = ntohl(f_size); 
+	cout << "FILE SIZE: \n" << f_size << endl;
+	
+	//Receive file from client in chunks 
+
+}
+
 /* Send the requested file in chunks to the client */ 
 void DN(int new_sockfd) {
-	
+
 	// Get filename size from client
 	info_struct info; 
 	if(recv(new_sockfd, &info, sizeof(info), 0) == -1) {
@@ -182,6 +299,8 @@ void DN(int new_sockfd) {
 	} 
 
 	info.fn_size = ntohs(info.fn_size);  //TODO: use this as a check against the size of the filename that is received
+
+    cout << "Converted fn_size: " << info.fn_size << endl; 
 
 	// Get filename from client 
 	char filename[BUFSIZ]; 
@@ -228,7 +347,7 @@ void DN(int new_sockfd) {
 
 		int amt_read = fread(file_content, sizeof(char), MAX_SIZE, file_to_dn); 
 		
-		nread = nread + amt_read; 
+        nread = nread + amt_read; 
      
 		if (send(new_sockfd, file_content, MAX_SIZE, 0) == -1) { 
 			perror("Error sending file content to client");
@@ -288,81 +407,6 @@ void MKDIR(int new_sockfd) {
 		return; 
 	} 
 
-}
-
-/* Remove directory */ 
-void RMDIR(int new_sockfd) {
-    // Receive length of dir name
-    short int len = 0;
-	if(recv(new_sockfd, &len, sizeof(len), 0) == -1) {
-		perror("Error receiving directory name size from client"); 
-		return; 
-	} 
-    // Convert to host byte order
-    len = ntohs(len);   //TODO: something with comparing lengths?
-
-    // Receive dir name
-    char dirname[BUFSIZ]; 
-	bzero((char*) &dirname, sizeof(dirname));
-    if(recv(new_sockfd, dirname, sizeof(dirname), 0) == -1) {
-		perror("Error receiving dirname from client"); 
-		return; 
-	} 
-
-    // Check if dir exists / is empty
-    int code;
-    if (file_exist(dirname)) {
-        DIR *dir = opendir(dirname);
-        int n = 0;  // # of files in directory
-        while (readdir(dir) != NULL) {
-            n++;
-            if (n > 2) // More than . and .. found: the dir is not empty
-                break;
-        }
-        if (n == 2) { // Directory is empty
-            code = htonl(1);
-        }
-        else {  // Directory is not empty
-            code = htonl(-2);
-        }
-    }
-    else { // Directory does not exist
-        code = htonl(-1);
-    }
-    
-    // Return status to the client
-    if(send(new_sockfd, &code, sizeof(code), 0) == -1) {
-		perror("Error sending RMDIR status to client"); 
-		return; 
-	}
-    
-    if (code != htonl(1)) // Wait for the next command
-        return;
-
-    // Receive confirmation from client 
-    char conf[MAX_SIZE];
-    bzero((char*) &conf, sizeof(conf));
-    if(recv(new_sockfd, conf, sizeof(conf), 0) == -1) {
-		perror("Error receiving confirmation from client"); 
-		return; 
-	}
-
-    if (strcmp(conf, "Yes") == 0) {
-        // Remove the directory
-        char rm_cmd[MAX_SIZE] = "rm -r ";
-        strcat(rm_cmd, dirname); 
-        if (system(rm_cmd) < 0) { // Unable to remove directory
-            code = htonl(-1);   
-        }
-        else { // Removed directory
-            code = htonl(1);
-        }
-        // Send status to client
-        if(send(new_sockfd, &code, sizeof(code), 0) == -1) {
-		    perror("Error sending RMDIR status to client"); 
-	    	return; 
-	    }
-    }
 }
 
 int main(int argc, char** argv) {
@@ -431,11 +475,13 @@ int main(int argc, char** argv) {
         /* Continue to receive commands */ 
 	    char command[MAX_SIZE];
         while (1) {
-            bzero((char*) &command, sizeof(command)); // Clear memory
+
 			if (recv(new_sockfd, command, sizeof(command), 0) == -1) {
             	perror("Error receiving command from client.");   
 				return 1; 
        		}
+
+			cout << command << endl; 
 
 	    	/* Handle commands */ 
 			char delim[] = " ";
@@ -448,18 +494,21 @@ int main(int argc, char** argv) {
                 HEAD(new_sockfd, file);
             }
             else if (strncmp(command, "CD", 2) == 0) {
-                char* dir = strtok(command, delim); //FIXME: this is duplicated 
-                dir = strtok(NULL, delim);
+                char* dir = strtok(command, delim); 
+				dir = strtok(NULL, delim);
                 CD(new_sockfd, dir);
             }
             else if (strncmp(command, "DN", 2) == 0) {
                 DN(new_sockfd);
             }
+            else if (strncmp(command, "UP", 2) == 0) {
+               	UP(new_sockfd);
+            }
             else if (strncmp(command, "MKDIR", 5) == 0) {
                 MKDIR(new_sockfd);
             }
-            else if (strncmp(command, "RMDIR", 5) == 0) {
-                RMDIR(new_sockfd);
+           	else if (strncmp(command, "RM", 2) == 0) {
+                RM(new_sockfd);
             }
             else if (strcmp(command, "QUIT") == 0) {
                 close(new_sockfd);
