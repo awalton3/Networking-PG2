@@ -99,13 +99,15 @@ void DN(int sockfd, char* filename) {
         return;
 	}
 
-	// Receive file size from server 
-    if (recv(sockfd, &info, sizeof(info), 0) == -1) {
+	// Receive file size from server
+    int file_size = 0; 
+    if (recv(sockfd, &file_size, sizeof(file_size), 0) == -1) {
         perror("Failed to receive filesize from server.");
         return;
     }
-	info.f_size = ntohl(info.f_size); 
-    if (info.f_size == -1) {
+
+	file_size = ntohs(file_size); 
+    if (file_size == 0) {
         cout << "File does not exist on server" << endl;
         return;
     }
@@ -122,7 +124,7 @@ void DN(int sockfd, char* filename) {
     system(clr_cmd);
     // Receive file in 4096 chunks 
 	int nread = 0; 
-    while (nread < info.f_size) {
+    while (nread < file_size) {
 		char chunk[MAX_SIZE + sizeof(char)]; 
         bzero((char*) &chunk, sizeof(chunk)); // Clear memory
         FILE* new_file = fopen(filename, "a");  // File on client side to append text to
@@ -133,12 +135,8 @@ void DN(int sockfd, char* filename) {
         // Append chunk to local copy of the file
         fputs(chunk, new_file);
 	    nread = nread + strlen(chunk);
-		cout << "**** nread: " << nread << endl; 
-        cout << chunk << endl << endl;
-        fclose(new_file);  //FIXME: move this and opening file outside of while loop
+    	fclose(new_file);  //FIXME: move this and opening file outside of while loop
 	} 
-
-	cout << "##### Total: " << nread << endl; 
 }
 
 /* Create a directory on the server */ 

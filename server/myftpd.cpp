@@ -192,10 +192,9 @@ void DN(int new_sockfd) {
 	} 
 
 	// Check if file exists 
-	if (!file_exist(filename)) {
-		cout << "Received file does not exist \n"; 
+	if (!file_exist(filename)) { 
 		// Return error code to client 
-        int code = -1;
+        short int code = htons(0);
         if (send(new_sockfd, &code, sizeof(code), 0) == -1) { 
 		    perror("Error sending code to client");
         }
@@ -204,42 +203,32 @@ void DN(int new_sockfd) {
 
 	// Send file size to client 
 	int file_size = file_sz(filename); 	
-   	info.f_size = htonl(file_size); 
+   	short int fsend = htons(file_size); 
 
-	cout << "Filesize in struct: " << info.f_size << endl;
-
-	if (send(new_sockfd, &info, sizeof(info), 0) == -1) { 
+	if (send(new_sockfd, &fsend, sizeof(fsend), 0) == -1) { 
 		perror("Error sending filesize to client");
         return;
     }
 
-	cout << "Sent filesize to client \n"; 
 	// Send md5sum hash to client 
 	char* hash = md5sum(filename); 
-	cout << "Calculated md5sum: " << hash << endl; 
-
     if (send(new_sockfd, hash, strlen(hash) + 1, 0) == -1) { 
 		perror("Error sending md5sum hash to client");
         return;
     }
-	cout << "Sent md5sum hash to client \n"; 
 
 	// Read file and send contents to client
 	char file_content[MAX_SIZE + 1]; 
 	FILE* file_to_dn = fopen(filename, "r");
 
 	int nread = 0; 
-
 	while (nread < file_size) {
 
 		bzero((char *)&file_content, sizeof(file_content));  // Clear old content
 
 		int amt_read = fread(file_content, sizeof(char), MAX_SIZE, file_to_dn); 
 		
-		nread = nread + amt_read;  
-
-        cout << "nread: " << nread << "amt_read: " << amt_read << endl << endl;
-        cout << file_content << "!!!!!" << endl << endl;
+		nread = nread + amt_read; 
      
 		if (send(new_sockfd, file_content, MAX_SIZE, 0) == -1) { 
 			perror("Error sending file content to client");
@@ -247,7 +236,6 @@ void DN(int new_sockfd) {
     	}
 	}
 
-	cout << "##### Total read: #####" << nread << endl; 
 }
 
 /* Create new directory specified by client */
